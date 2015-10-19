@@ -4,9 +4,9 @@ ___________________________________________________________________
 
 #loading R packages
 library(sp);library(spdep);library(maptools);library(maps);library(mapdata);library(mapproj);
-library(raster);library(rgeos);library(rgdal);library(RGoogleMaps);library(scales);library(plotrix); library(RColorBrewer);library(classInt);library(epitools);library(PBSmapping);library(Rgooglemaps)
+library(raster);library(rgeos);library(rgdal);library(scales);library(plotrix); library(RColorBrewer);library(classInt);library(epitools);library(PBSmapping);library(RgoogleMaps)
 
-setwd("~/Documents/git/projects/IntroMappingR") #setting your working directory
+setwd("~/Documents/IntroMappingR") #setting your working directory
 
 rm(list = ls()) #purging memory
 
@@ -22,13 +22,14 @@ ___________________________________________________________________
 	map('worldHires','usa',col='gray',border='black',fill=TRUE) 
 #change extent of map
 	map('worldHires','usa',col="gray90",xlim=c(-80,-70),ylim=c(40,50),fill=TRUE)
-#plotting state boundaries 		
+	
+#plotting new map with state boundaries 		
 	map('state',col="gray90",xlim=c(-80,-70),ylim=c(40,50),fill=TRUE)
 #adding in border to map plot 
 	box() 
-#adding in a scale bar, note that this is an unprojected! therefore the position of the scalebar matters - the scale will change depending on where the scalebar is placed
+#adding in a scale bar, note that this is an unprojected map! Therefore the position of the scalebar matters - the scale will change depending on where the scale bar is placed
 	map.scale(x=-79.5,y=40.6,relwidth=.2,cex=.8,ratio=FALSE) 
-#adding in Canada, but what if you want to add in provinces? Use the online GADM resource to get the administrative units of countries in R - you need an  internet connection for this!
+#adding in Canada, but what if you want to add in provinces? Use the online GADM resource to get the administrative units of countries in R -> level 1 = provinces or states
 	map('worldHires','canada',col='gray90',fill=TRUE, add=T) 
 	canada <- getData("GADM",country="CAN",level=1)
 	class(canada)
@@ -43,25 +44,30 @@ ___________________________________________________________________
 	head(allsites)
 #plotting the points onto your map of NE USA and Canada
 	points(allsites$long,allsites$lat,add=TRUE,pch=19,col='red',cex=1)
-#generating points of different sizes - perhaps relative to diversity in each area or another metric
-	points(allsites$long,allsites$lat,add=TRUE,pch=19,col=c('red','orange','black','purple'),cex=c(3,2,1.5,1.2))
 #adding in site labels onto map, can relocate on map so they don't fall right on top of your GPS points
-	text(allsites$long-2,allsites$lat,labels=allsites$sites,add=TRUE,col='black',cex=.8)
+	text(allsites$long-1.8,allsites$lat+.4,labels=allsites$sites,add=TRUE,col='black',cex=1,font=2)
+
+#generating new points of different sizes - perhaps relative to diversity in each area or another metric
+	points(allsites$long,allsites$lat,add=TRUE,pch=19,col=c('red','orange','black','purple'),cex=c(3,2,1.5,1.2))
 
 ___________________________________________________________________
 #3. Overlaying distributional data for species onto your maps
 ___________________________________________________________________
 
 #Reading in polygons of distributional data for North American tree species and plotting
-	ACERUB <- readShapePoly("acerrubr/acerrubr.shp") 
-	CASDEN <- readShapePoly("castdent/castdent.shp")
+	ACERUB <- readShapePoly("acerrubr/acerrubr.shp") #Acer rubrum, red maple
+	CASDEN <- readShapePoly("castdent/castdent.shp") #Castanea dentatum, American chesnut
+#plotting new map with larger extent	
 	map('world',xlim=c(-130,-60),ylim=c(25,60))
 	box()
+#plotting species distributions - for ShapePolygon files, use 'plot' function to map
 	plot(ACERUB,fill=TRUE,col='red',add=TRUE)
 	plot(CASDEN,fill=TRUE,col='cyan',,add=TRUE)
-#remapping and using scales library to make distribution maps transparent	
-	map('world',xlim=c(-130,-60),ylim=c(25,60))				
+#remapping and using 'scales' library to make distribution maps transparent	so that state boundaries can be seen
+	map('world',xlim=c(-130,-60),ylim=c(25,60))
+	map('state',xlim=c(-130,-60),ylim=c(25,60),add=TRUE)				
 	box()
+#aplha is the function to generate tranparency, try changing values to see how it looks
 	plot(ACERUB,fill=TRUE,col=alpha('red',.5),add=TRUE)
 	plot(CASDEN,fill=TRUE,col=alpha('cyan',.5),,add=TRUE)
 	
@@ -82,34 +88,37 @@ ___________________________________________________________________
 	class(behr.proj)
 #compare no projection to an equal area projection
 	layout(matrix(c(1,2),2,2,byrow=FALSE)) #plot layout for comparison
-#note that you use the map function for an object of 'map' class, versus plot for class 'SpatialPolygon'
+#note again that you use the map function for an object of 'map' class, versus plot for class 'SpatialPolygon'
 	map(no.proj,xlim=c(-120,-70),ylim=c(20,50),col="grey80",fill=TRUE)
 	box()
 	plot(behr.proj,xlim=c(-120,-70),ylim=c(20,50),col="grey80",fill=TRUE)
 	box()
-	points(allsites$long,allsites$lat,add=TRUE,pch=19,col='red',cex=1)
-#can also designate the projection when reading in shape files
+#you can also designate the projection when reading in shape files
 	ACERUB.behr <- readShapePoly("acerrubr/acerrubr.shp",proj4string=CRS("+proj=cea +lat_ts=30"))
-	plot(ACERUB.behr)
+	
 ___________________________________________________________________
 # 5. Introduction to the raster library; mapping gridded cells with climate data as an example, extracting values from grid cells of raster layers
 ___________________________________________________________________
-#reading in mean annual temperature data
+
+#reading in global mean annual temperature data as a raster layer
 	mean.temp <- raster("bio1.bil")
 #WorldClim temperature data is degrees celcius multiplied by ten
 	mean.temp <- mean.temp/10
 #mapping raster layer
 	plot(mean.temp)
-#extracting climate data for polygon data, say for the distribtion of a tree species
+#extracting mean annual temperature from a raster layer for polygons, in this case the distribution of red maple
 	ACERUB <- readShapePoly("acerrubr/acerrubr.shp")
 	temp.acerub <- extract(mean.temp,ACERUB)
+#generating a single vector of temperatures across Acer rubrum's distribution
 	temp.acerub <- unlist(temp.acerub)
 #plotting the distribtion of temperatures from grid cells that Acer rubrum's distribution falls into
 	hist(temp.acerub,xlab="Degrees Celcius",main="Acer rubrum Mean Annual Temperature")
 #extracting climate data for point data, in this case Wolkovich field sites
 	site.temps <- extract(mean.temp,allsites[,c('long','lat')])
+
+#Try to go back and plot points for each field site with the size of the dots scaled to temperature!
 ___________________________________________________________________
-# 6. Plotting winegrape variety richness data in France
+# 6. Generating a PolygonShapeDataFrame and adding your own data - plotting winegrape variety richness data in California
 ___________________________________________________________________
 
 #reading in data on California wine regions
@@ -122,15 +131,16 @@ ___________________________________________________________________
 	my.col<-findColours(my.int,my.pal) #ramping colors based on choosen palette
 #reading in county level data for the US
 	region <- getData("GADM", country='USA', level=2)
-#converting polygon into a SpatialPolygonsDataFrame object with WGS84 projection
+#converting polygon into a SpatialPolygonsDataFrame object with the WGS84 projection
 	region <- spTransform(region,CRS("+proj=longlat +datum=WGS84"))
 	head(region@data)
 #subsetting country-level polygons to only those counties in the CA wine dataset
 	sub.region <- region[which(region@data$NAME_2%in%CA.wine$level_2&region@data$NAME_1=="California"),]
-#matching the color data to the county level-data & attaching to dataframe of shape file
+#matching the color data to the county level data & attaching to dataframe of shape file
 	sub.region$color <- my.col[match(CA.wine$level_2,sub.region@data$NAME_2)]
 #can attach any data to the sub.region@data dataframe for plotting and generating color ramps!
-#setting up plot for California
+
+#setting up plot for California which will be written to a pdf file saved to your current directory
 	pdf('CA_rich.pdf')
 	map(database='state',interior=TRUE,col='dark gray',xlim=c(-130,-112),ylim=c(30,45))
 	map('worldHires','mexico',interior=TRUE,col='dark gray',xlim=c(-130,-112),ylim=c(30,45),add=TRUE)
@@ -143,6 +153,7 @@ ___________________________________________________________________
 ___________________________________________________________________	
 # 7. Adding a terrain map using RgoogleMaps
 ___________________________________________________________________
+
 ##define latitudinal and longitudinal range
 	long <- c(-75,-71)
 	lat <- c(42,46)
